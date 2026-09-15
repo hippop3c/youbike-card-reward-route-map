@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="以匿名卡片識別分析雙北友愛接力每日獎勵起訖路線。">
+  <title>友愛接力卡號路線分析</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="app.css?v=20260915-v1">
+</head>
+<body>
+  <div class="loading" id="loading" role="status" aria-live="polite">
+    <div class="loading-card"><span class="spinner"></span><strong id="loadingText">載入卡片與路線索引…</strong></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true">Y</div>
+    <div class="brand-copy"><h1>友愛接力卡號路線分析</h1><p>卡號後五碼 × 每日獎勵起訖</p></div>
+    <span class="local-badge">內部分析</span>
+  </header>
+
+  <section class="filters" aria-label="分析條件">
+    <div class="date-control">
+      <span class="control-label">獎勵日期（可複選）</span>
+      <button class="date-button" id="dateButton" type="button" aria-haspopup="dialog" aria-expanded="false"><strong id="dateButtonText">全部日期</strong><span>▾</span></button>
+      <div class="date-popover hidden" id="datePopover" role="dialog" aria-label="選擇獎勵日期">
+        <div class="date-actions">
+          <button type="button" data-date-action="all">全選</button>
+          <button type="button" data-date-action="weekday">僅平日</button>
+          <button type="button" data-date-action="holiday">僅假日</button>
+          <button type="button" data-date-action="none">清除</button>
+        </div>
+        <div class="date-grid" id="dateGrid"></div>
+      </div>
+    </div>
+    <div class="selection-summary"><span>目前累計範圍</span><strong id="selectionSummary">—</strong></div>
+    <label class="card-search"><span class="control-label">搜尋卡號</span><input id="cardSearch" type="search" inputmode="numeric" autocomplete="off" placeholder="輸入後五碼或匿名代碼"></label>
+  </section>
+
+  <main class="workspace">
+    <aside class="card-panel" aria-label="卡片清單">
+      <div class="panel-head"><div><p>CARDS</p><h2>卡片清單</h2></div><strong id="cardCount">0</strong></div>
+      <p class="panel-note">次數為全期合計；點選卡片後依上方日期重算。</p>
+      <div class="card-list" id="cardList"></div>
+      <div class="pagination"><button id="prevPage" type="button">上一頁</button><span id="pageText">1 / 1</span><button id="nextPage" type="button">下一頁</button></div>
+    </aside>
+
+    <section class="map-panel">
+      <div id="map" aria-label="卡片獎勵起訖路線地圖"></div>
+      <div class="map-legend">
+        <span><i class="legend-line full"></i>滿借獎勵</span>
+        <span><i class="legend-line empty"></i>空還獎勵</span>
+        <span><i class="legend-line both"></i>同路線兩類皆有</span>
+        <span><i class="legend-dot origin">起</i>起站</span>
+        <span><i class="legend-dot destination">訖</i>訖站</span>
+      </div>
+      <div class="map-message" id="mapMessage">請從左側選擇一張卡片</div>
+    </section>
+
+    <aside class="route-panel" aria-label="卡片獎勵路線明細">
+      <div class="empty-state" id="routeEmpty"><div class="empty-icon">↗</div><h2>尚未選擇卡片</h2><p>點選左側卡片後，這裡會顯示所選日期的累積次數與完整起訖路線。</p></div>
+      <div class="route-content hidden" id="routeContent">
+        <div class="selected-card"><div><p>SELECTED CARD</p><h2 id="selectedSuffix">—</h2></div><span id="selectedAlias">—</span></div>
+        <div class="summary-cards">
+          <div class="full"><span>滿借次數</span><strong id="fullTotal">0</strong></div>
+          <div class="empty"><span>空還次數</span><strong id="emptyTotal">0</strong></div>
+          <div><span>累積獎勵</span><strong id="rewardTotal">0</strong></div>
+          <div><span>起訖路線</span><strong id="routeCount">0</strong></div>
+        </div>
+        <div class="route-head"><h3>起訖路線明細</h3><span id="routeScope">—</span></div>
+        <div class="route-table-wrap">
+          <table>
+            <thead><tr><th>起站 → 訖站</th><th>滿借</th><th>空還</th><th>累積</th></tr></thead>
+            <tbody id="routeBody"></tbody>
+          </table>
+        </div>
+        <p class="privacy-note">完整卡號、帳號與訂單號未寫入網站資料；匿名代碼用來區分相同後五碼的不同卡片。</p>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="data/manifest.js?v=20260915-v1"></script>
+  <script src="app.js?v=20260915-v1"></script>
+</body>
+</html>
