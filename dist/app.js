@@ -6,6 +6,7 @@
   const COLORS = { full: "#ef7d35", empty: "#159b73", both: "#7656b6" };
   const state = {
     selectedDates: new Set(),
+    selectedHours: new Set(),
     query: "",
     page: 1,
     selectedCard: null,
@@ -81,6 +82,25 @@
     updateDateSummary();
   }
 
+  function buildHours() {
+    const fragment = document.createDocumentFragment();
+    const hours = DATA.hours || Array.from({ length: 24 }, (_, hour) => hour);
+    hours.forEach((hour) => {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = String(hour);
+      input.checked = true;
+      const text = document.createElement("span");
+      text.textContent = `${String(hour).padStart(2, "0")}:00–${String(hour).padStart(2, "0")}:59`;
+      label.append(input, text);
+      fragment.appendChild(label);
+      state.selectedHours.add(hour);
+    });
+    $("timeGrid").replaceChildren(fragment);
+    updateHourSummary();
+  }
+
   function checkedDateIndices() {
     return [...$("dateGrid").querySelectorAll('input[type="checkbox"]:checked')].map((input) => Number(input.value));
   }
@@ -91,11 +111,35 @@
     if (state.selectedCard) renderSelectedRoutes();
   }
 
+  function checkedHours() {
+    return [...$("timeGrid").querySelectorAll('input[type="checkbox"]:checked')].map((input) => Number(input.value));
+  }
+
+  function syncSelectedHours() {
+    state.selectedHours = new Set(checkedHours());
+    updateHourSummary();
+    if (state.selectedCard) renderSelectedRoutes();
+  }
+
+  function updateSelectionSummary() {
+    const dates = [...state.selectedDates].sort((a, b) => a - b);
+    const hours = [...state.selectedHours].sort((a, b) => a - b);
+    const dateText = dates.length
+      ? `${shortDate(DATA.dates[dates[0]][0])}–${shortDate(DATA.dates[dates[dates.length - 1]][0])}，${dates.length} 日`
+      : "0 日";
+    const hourText = hours.length === 24
+      ? "全天 24 時段"
+      : hours.length
+        ? `${String(hours[0]).padStart(2, "0")}–${String(hours[hours.length - 1]).padStart(2, "0")} 時，${hours.length} 時段`
+        : "0 時段";
+    $("selectionSummary").textContent = `${dateText} · ${hourText}`;
+  }
+
   function updateDateSummary() {
     const selected = [...state.selectedDates].sort((a, b) => a - b);
     if (!selected.length) {
       $("dateButtonText").textContent = "尚未選擇日期";
-      $("selectionSummary").textContent = "0 日";
+      updateSelectionSummary();
       return;
     }
     if (selected.length === DATA.dates.length) {
@@ -105,9 +149,21 @@
     } else {
       $("dateButtonText").textContent = `已選 ${selected.length} 日`;
     }
-    const first = DATA.dates[selected[0]][0];
-    const last = DATA.dates[selected[selected.length - 1]][0];
-    $("selectionSummary").textContent = `${shortDate(first)}–${shortDate(last)}，共 ${selected.length} 日`;
+    updateSelectionSummary();
+  }
+
+  function updateHourSummary() {
+    const selected = [...state.selectedHours].sort((a, b) => a - b);
+    if (!selected.length) {
+      $("timeButtonText").textContent = "尚未選擇時段";
+    } else if (selected.length === 24) {
+      $("timeButtonText").textContent = "全部 24 時段";
+    } else if (selected.length <= 3) {
+      $("timeButtonText").textContent = selected.map((hour) => `${String(hour).padStart(2, "0")} 時`).join("、");
+    } else {
+      $("timeButtonText").textContent = `已選 ${selected.length} 時段`;
+    }
+    updateSelectionSummary();
   }
 
   function visibleCards() {
@@ -146,7 +202,7 @@
         script.dataset.shard = shard;
         script.onload = () => {
           const payload = window.CARD_REWARD_ROUTE_SHARD;
-          if (!payload || payload.shard !== shard || !payload.cards) {
+          if (!payload || payload.version !== DATA.version || payload.shard !== shard || !payload.cards) {
             reject(new Error("路線分片格式錯誤"));
             return;
           }
@@ -204,22 +260,23 @@
     let full = 0;
     let empty = 0;
     for (const row of state.selectedRows) {
-      if (!state.selectedDates.has(row[0])) continue;
-      const key = `${row[1]}:${row[2]}`;
-      const current = routes.get(key) || { key, origin: row[1], destination: row[2], full: 0, empty: 0, days: new Set() };
-      current.full += Number(row[3] || 0);
-      current.empty += Number(row[4] || 0);
+      if (!state.selectedDates.has(row[0]) || !state.selectedHours.has(row[1])) continue;
+      const key = `${row[2]}:${row[3]}`;
+      const current = routes.get(key) || { key, origin: row[2], destination: row[3], full: 0, empty: 0, days: new Set(), hours: new Set() };
+      current.full += Number(row[4] || 0);
+      current.empty += Number(row[5] || 0);
       current.days.add(row[0]);
+      current.hours.add(row[1]);
       routes.set(key, current);
-      full += Number(row[3] || 0);
-      empty += Number(row[4] || 0);
+      full += Number(row[4] || 0);
+      empty += Number(row[5] || 0);
     }
     const list = [...routes.values()].map((route) => ({ ...route, total: route.full + route.empty })).sort((a, b) => b.total - a.total || b.full - a.full || a.key.localeCompare(b.key));
     return { list, full, empty };
   }
 
   function routePopup(route) {
-    return `<div class="popup-route"><strong>${safe(stationName(route.origin))} → ${safe(stationName(route.destination))}</strong><span><em>滿借獎勵</em><b>${fmt.format(route.full)}</b></span><span><em>空還獎勵</em><b>${fmt.format(route.empty)}</b></span><span><em>累積獎勵</em><b>${fmt.format(route.total)}</b></span><span><em>發生日</em><b>${fmt.format(route.days.size)} 日</b></span></div>`;
+    return `<div class="popup-route"><strong>${safe(stationName(route.origin))} → ${safe(stationName(route.destination))}</strong><span><em>滿借獎勵</em><b>${fmt.format(route.full)}</b></span><span><em>空還獎勵</em><b>${fmt.format(route.empty)}</b></span><span><em>累積獎勵</em><b>${fmt.format(route.total)}</b></span><span><em>發生日／時段</em><b>${fmt.format(route.days.size)} 日／${fmt.format(route.hours.size)} 時段</b></span></div>`;
   }
 
   function validCoordinate(station) {
@@ -297,11 +354,11 @@
     $("emptyTotal").textContent = fmt.format(empty);
     $("rewardTotal").textContent = fmt.format(full + empty);
     $("routeCount").textContent = fmt.format(list.length);
-    $("routeScope").textContent = `${fmt.format(state.selectedDates.size)} 個選取日期`;
+    $("routeScope").textContent = `${fmt.format(state.selectedDates.size)} 個日期 · ${fmt.format(state.selectedHours.size)} 個時段`;
     $("routeBody").innerHTML = list.map((route) => {
       const origin = DATA.stations[route.origin];
       const destination = DATA.stations[route.destination];
-      const subtitle = `${safe(origin?.[1] || "")} ${safe(origin?.[2] || "")} → ${safe(destination?.[1] || "")} ${safe(destination?.[2] || "")} · ${fmt.format(route.days.size)} 日`;
+      const subtitle = `${safe(origin?.[1] || "")} ${safe(origin?.[2] || "")} → ${safe(destination?.[1] || "")} ${safe(destination?.[2] || "")} · ${fmt.format(route.days.size)} 日／${fmt.format(route.hours.size)} 時段`;
       return `<tr><td><button class="route-link" type="button" data-route-key="${route.key}">${safe(stationName(route.origin))} → ${safe(stationName(route.destination))}<small>${subtitle}</small></button></td><td>${fmt.format(route.full)}</td><td>${fmt.format(route.empty)}</td><td><strong>${fmt.format(route.total)}</strong></td></tr>`;
     }).join("") || '<tr><td colspan="4" style="padding:28px 10px;text-align:center;color:#66778a">所選日期沒有獎勵紀錄</td></tr>';
     drawMap(list);
@@ -311,6 +368,8 @@
     $("dateButton").addEventListener("click", () => {
       const open = $("datePopover").classList.toggle("hidden");
       $("dateButton").setAttribute("aria-expanded", String(!open));
+      $("timePopover").classList.add("hidden");
+      $("timeButton").setAttribute("aria-expanded", "false");
     });
     $("dateGrid").addEventListener("change", syncSelectedDates);
     $("datePopover").addEventListener("click", (event) => {
@@ -322,16 +381,38 @@
       });
       syncSelectedDates();
     });
+    $("timeButton").addEventListener("click", () => {
+      const open = $("timePopover").classList.toggle("hidden");
+      $("timeButton").setAttribute("aria-expanded", String(!open));
+      $("datePopover").classList.add("hidden");
+      $("dateButton").setAttribute("aria-expanded", "false");
+    });
+    $("timeGrid").addEventListener("change", syncSelectedHours);
+    $("timePopover").addEventListener("click", (event) => {
+      const action = event.target.dataset.timeAction;
+      if (!action) return;
+      $("timeGrid").querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        const hour = Number(input.value);
+        input.checked = action === "all" || (action === "daytime" && hour >= 6 && hour <= 23);
+      });
+      syncSelectedHours();
+    });
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".date-control")) {
         $("datePopover").classList.add("hidden");
         $("dateButton").setAttribute("aria-expanded", "false");
+      }
+      if (!event.target.closest(".time-control")) {
+        $("timePopover").classList.add("hidden");
+        $("timeButton").setAttribute("aria-expanded", "false");
       }
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         $("datePopover").classList.add("hidden");
         $("dateButton").setAttribute("aria-expanded", "false");
+        $("timePopover").classList.add("hidden");
+        $("timeButton").setAttribute("aria-expanded", "false");
       }
     });
     $("cardSearch").addEventListener("input", (event) => {
@@ -361,6 +442,7 @@
   function currentView() {
     return {
       dates: [...state.selectedDates].sort((a, b) => a - b).map((index) => DATA.dates[index][0]),
+      hours: [...state.selectedHours].sort((a, b) => a - b),
       cardSearch: state.query,
       selectedCard: state.selectedCard ? { suffix: state.selectedCard[1], anonymousAlias: cardAlias(state.selectedCard[0]) } : null,
       totals: state.selectedCard ? {
@@ -384,7 +466,7 @@
     register({
       name: "read_card_route_view",
       title: "讀取卡號路線分析畫面",
-      description: "讀取目前勾選日期、卡號搜尋、已選匿名卡片與累積獎勵結果。",
+      description: "讀取目前勾選日期與時段、卡號搜尋、已選匿名卡片與累積獎勵結果。",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: () => currentView()
@@ -392,11 +474,12 @@
     register({
       name: "configure_card_route_view",
       title: "設定卡號路線分析畫面",
-      description: "批次設定獎勵日期，並可用卡號後五碼與匿名代碼選取一張卡片。",
+      description: "批次設定獎勵日期與時段，並可用卡號後五碼與匿名代碼選取一張卡片。",
       inputSchema: {
         type: "object",
         properties: {
           dates: { type: "array", items: { type: "string", pattern: "^2026-(07|08|09)-[0-3][0-9]$" } },
+          hours: { type: "array", items: { type: "integer", minimum: 0, maximum: 23 }, uniqueItems: true },
           cardSuffix: { type: "string", pattern: "^[0-9]{5}$" },
           anonymousAlias: { type: "string", pattern: "^[0-9A-Fa-f]{6}$" }
         },
@@ -413,6 +496,13 @@
             checkbox.checked = wanted.has(DATA.dates[Number(checkbox.value)][0]);
           });
           syncSelectedDates();
+        }
+        if (input.hours) {
+          const wantedHours = new Set(input.hours);
+          $("timeGrid").querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+            checkbox.checked = wantedHours.has(Number(checkbox.value));
+          });
+          syncSelectedHours();
         }
         if (input.cardSuffix || input.anonymousAlias) {
           const suffix = input.cardSuffix || "";
@@ -438,6 +528,7 @@
       return;
     }
     buildDates();
+    buildHours();
     renderCardList();
     bindEvents();
     registerWebMcp();

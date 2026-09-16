@@ -8,9 +8,9 @@
     ],
     "cardCount": 702453,
     "stationCount": 3505,
-    "routeDayRows": 1984637,
+    "routeHourRows": 1993239,
     "shardCount": 256,
-    "privacy": "Website data contains only card suffixes, keyed anonymous IDs and reward-route aggregates. Full cards, accounts and order IDs are excluded."
+    "privacy": "Website data contains only card suffixes, keyed anonymous IDs and hourly reward-route aggregates. Full cards, accounts and order IDs are excluded."
   },
   "aggregation": {
     "source": {
@@ -24,11 +24,11 @@
       "includedFull": 456745,
       "excludedNonMobileOrders": 60825,
       "cardCount": 702453,
-      "routeDayRows": 1984637
+      "routeHourRows": 1993239
     }
   },
   "stationAudit": {
     "unmatchedStations": 87
   },
-  "generatedAt": "2026-09-15T16:04:28+08:00"
+  "generatedAt": "2026-09-16T10:47:36+08:00"
 }

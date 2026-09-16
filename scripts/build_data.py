@@ -224,9 +224,9 @@ ON CONFLICT(order_id) DO UPDATE SET
 
 
 ROUTE_UPSERT = """
-INSERT INTO routes (card_id, date_index, origin_index, destination_index, full_count, empty_count)
-VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(card_id, date_index, origin_index, destination_index) DO UPDATE SET
+INSERT INTO routes (card_id, date_index, hour_index, origin_index, destination_index, full_count, empty_count)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(card_id, date_index, hour_index, origin_index, destination_index) DO UPDATE SET
   full_count = routes.full_count + excluded.full_count,
   empty_count = routes.empty_count + excluded.empty_count
 """
@@ -288,7 +288,7 @@ def aggregate_routes(
 ) -> dict[str, int]:
     audit: Counter[str] = Counter()
     card_batch: list[tuple[str, str, str]] = []
-    route_batch: list[tuple[str, int, int, int, int, int]] = []
+    route_batch: list[tuple[str, int, int, int, int, int, int]] = []
     select = connection.execute(
         "SELECT account, card, category, borrow_time, borrow_city, borrow_station, return_time, return_city, return_station FROM orders"
     )
@@ -310,35 +310,35 @@ def aggregate_routes(
         if len(card) < 5:
             audit["excludedMissingOrShortCard"] += 1
             continue
-        reward_by_date: defaultdict[str, list[int]] = defaultdict(lambda: [0, 0])
+        reward_events: list[tuple[str, int, int, int]] = []
         if "滿借" in category:
             timestamp = parse_datetime(borrow_text)
             if timestamp and borrow_city in IN_SCOPE_CITIES and timestamp.date().isoformat() in dates:
-                reward_by_date[timestamp.date().isoformat()][0] = 1
+                reward_events.append((timestamp.date().isoformat(), timestamp.hour, 1, 0))
                 audit["includedFull"] += 1
             elif not timestamp:
                 audit["badBorrowTime"] += 1
         if "空還" in category:
             timestamp = parse_datetime(return_text)
             if timestamp and return_city in IN_SCOPE_CITIES and timestamp.date().isoformat() in dates:
-                reward_by_date[timestamp.date().isoformat()][1] = 1
+                reward_events.append((timestamp.date().isoformat(), timestamp.hour, 0, 1))
                 audit["includedEmpty"] += 1
             elif not timestamp:
                 audit["badReturnTime"] += 1
-        if not reward_by_date:
+        if not reward_events:
             continue
         card_id = anonymous_id(secret, card)
         card_batch.append((card, card_id, card[-5:]))
-        for date_text, (full_count, empty_count) in reward_by_date.items():
+        for date_text, hour_index, full_count, empty_count in reward_events:
             month = date_text[:7]
             origin = stations.resolve(month, borrow_city, borrow_station)
             destination = stations.resolve(month, return_city, return_station)
-            route_batch.append((card_id, dates[date_text], origin, destination, full_count, empty_count))
+            route_batch.append((card_id, dates[date_text], hour_index, origin, destination, full_count, empty_count))
         if len(route_batch) >= 8000:
             flush()
     flush()
     audit["cardCount"] = int(connection.execute("SELECT COUNT(*) FROM cards").fetchone()[0])
-    audit["routeDayRows"] = int(connection.execute("SELECT COUNT(*) FROM routes").fetchone()[0])
+    audit["routeHourRows"] = int(connection.execute("SELECT COUNT(*) FROM routes").fetchone()[0])
     return dict(audit)
 
 
@@ -374,20 +374,20 @@ def serialize(
     route_record_count = 0
     for shard in shards:
         grouped: dict[str, list[list[int]]] = {}
-        for card_id, date_index, origin_index, destination_index, full_count, empty_count in connection.execute(
+        for card_id, date_index, hour_index, origin_index, destination_index, full_count, empty_count in connection.execute(
             """
-            SELECT card_id, date_index, origin_index, destination_index, full_count, empty_count
+            SELECT card_id, date_index, hour_index, origin_index, destination_index, full_count, empty_count
             FROM routes
             WHERE card_id >= ? AND card_id < ?
-            ORDER BY card_id, date_index, origin_index, destination_index
+            ORDER BY card_id, date_index, hour_index, origin_index, destination_index
             """,
             (shard, shard + "g"),
         ):
             grouped.setdefault(card_id, []).append([
-                int(date_index), int(origin_index), int(destination_index), int(full_count), int(empty_count)
+                int(date_index), int(hour_index), int(origin_index), int(destination_index), int(full_count), int(empty_count)
             ])
             route_record_count += 1
-        payload = {"version": "v1", "shard": shard, "cards": grouped}
+        payload = {"version": "v2", "shard": shard, "cards": grouped}
         (output_dir / f"routes-{shard}.js").write_text(
             SHARD_PREFIX + json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + ";",
             encoding="utf-8",
@@ -399,12 +399,13 @@ def serialize(
         "excludedDates": ["2026-07-10", "2026-07-11"],
         "cardCount": len(cards),
         "stationCount": len(stations.records),
-        "routeDayRows": route_record_count,
+        "routeHourRows": route_record_count,
         "shardCount": len(shards),
-        "privacy": "Website data contains only card suffixes, keyed anonymous IDs and reward-route aggregates. Full cards, accounts and order IDs are excluded.",
+        "privacy": "Website data contains only card suffixes, keyed anonymous IDs and hourly reward-route aggregates. Full cards, accounts and order IDs are excluded.",
     }
     manifest = {
-        "version": "v1",
+        "version": "v2",
+        "hours": list(range(24)),
         "dates": date_rows,
         "stations": stations.records,
         "cards": cards,
@@ -472,11 +473,12 @@ def main() -> None:
             CREATE TABLE routes (
               card_id TEXT NOT NULL,
               date_index INTEGER NOT NULL,
+              hour_index INTEGER NOT NULL,
               origin_index INTEGER NOT NULL,
               destination_index INTEGER NOT NULL,
               full_count INTEGER NOT NULL,
               empty_count INTEGER NOT NULL,
-              PRIMARY KEY (card_id, date_index, origin_index, destination_index)
+              PRIMARY KEY (card_id, date_index, hour_index, origin_index, destination_index)
             ) WITHOUT ROWID;
             """
         )

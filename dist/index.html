@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="以匿名卡片識別分析雙北友愛接力每日獎勵起訖路線。">
+  <meta name="description" content="以匿名卡片識別分析雙北友愛接力每日、各時段獎勵起訖路線。">
   <title>友愛接力卡號路線分析</title>
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="app.css?v=20260915-v1">
+  <link rel="stylesheet" href="app.css?v=20260916-v2">
 </head>
 <body>
   <div class="loading" id="loading" role="status" aria-live="polite">
@@ -17,7 +17,7 @@
   <header class="topbar">
     <div class="brand-mark" aria-hidden="true">Y</div>
     <div class="brand-copy"><h1>友愛接力卡號路線分析</h1><p>卡號後五碼 × 每日獎勵起訖</p></div>
-    <span class="local-badge">內部分析</span>
+    <span class="local-badge">公開版</span>
   </header>
 
   <section class="filters" aria-label="分析條件">
@@ -34,6 +34,18 @@
         <div class="date-grid" id="dateGrid"></div>
       </div>
     </div>
+    <div class="time-control">
+      <span class="control-label">獎勵時段（可複選）</span>
+      <button class="time-button" id="timeButton" type="button" aria-haspopup="dialog" aria-expanded="false"><strong id="timeButtonText">全部時段</strong><span>▾</span></button>
+      <div class="time-popover hidden" id="timePopover" role="dialog" aria-label="選擇獎勵時段">
+        <div class="time-actions">
+          <button type="button" data-time-action="all">全選</button>
+          <button type="button" data-time-action="daytime">06–23 時</button>
+          <button type="button" data-time-action="none">清除</button>
+        </div>
+        <div class="time-grid" id="timeGrid"></div>
+      </div>
+    </div>
     <div class="selection-summary"><span>目前累計範圍</span><strong id="selectionSummary">—</strong></div>
     <label class="card-search"><span class="control-label">搜尋卡號</span><input id="cardSearch" type="search" inputmode="numeric" autocomplete="off" placeholder="輸入後五碼或匿名代碼"></label>
   </section>
@@ -41,7 +53,7 @@
   <main class="workspace">
     <aside class="card-panel" aria-label="卡片清單">
       <div class="panel-head"><div><p>CARDS</p><h2>卡片清單</h2></div><strong id="cardCount">0</strong></div>
-      <p class="panel-note">次數為全期合計；點選卡片後依上方日期重算。</p>
+      <p class="panel-note">次數為全期全時段合計；點選卡片後依上方日期與時段重算。</p>
       <div class="card-list" id="cardList"></div>
       <div class="pagination"><button id="prevPage" type="button">上一頁</button><span id="pageText">1 / 1</span><button id="nextPage" type="button">下一頁</button></div>
     </aside>
@@ -82,7 +94,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="data/manifest.js?v=20260915-v1"></script>
-  <script src="app.js?v=20260915-v1"></script>
+  <script src="data/manifest.js?v=20260916-v2"></script>
+  <script src="app.js?v=20260916-v2"></script>
 </body>
 </html>
