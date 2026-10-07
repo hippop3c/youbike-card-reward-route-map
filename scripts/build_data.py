@@ -75,7 +75,7 @@ def source_files(source_root: Path) -> list[Path]:
     directories = (
         source_root / "raw_2026-07",
         source_root / "raw_2026-08_09",
-        source_root / "v3_2026-09-13" / "reward",
+        source_root / "v4_2026-09-30" / "reward_full_month",
     )
     missing = [str(path) for path in directories if not path.exists()]
     if missing:

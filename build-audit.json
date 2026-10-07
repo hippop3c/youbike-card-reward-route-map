@@ -1,34 +1,34 @@
 {
   "meta": {
     "periodStart": "2026-07-01",
-    "periodEnd": "2026-09-13",
+    "periodEnd": "2026-09-30",
     "excludedDates": [
       "2026-07-10",
       "2026-07-11"
     ],
-    "cardCount": 702453,
-    "stationCount": 3505,
-    "routeHourRows": 1993239,
+    "cardCount": 824743,
+    "stationCount": 3527,
+    "routeHourRows": 2604089,
     "shardCount": 256,
     "privacy": "Website data contains only card suffixes, keyed anonymous IDs and hourly reward-route aggregates. Full cards, accounts and order IDs are excluded."
   },
   "aggregation": {
     "source": {
-      "fileCount": 116,
-      "sourceRows": 2321918,
-      "uniqueOrders": 2057347,
-      "duplicateRows": 264571
+      "fileCount": 140,
+      "sourceRows": 2958888,
+      "uniqueOrders": 2683317,
+      "duplicateRows": 275571
     },
     "counts": {
-      "includedEmpty": 1564291,
-      "includedFull": 456745,
-      "excludedNonMobileOrders": 60825,
-      "cardCount": 702453,
-      "routeHourRows": 1993239
+      "includedEmpty": 2066135,
+      "includedFull": 574553,
+      "excludedNonMobileOrders": 76282,
+      "cardCount": 824743,
+      "routeHourRows": 2604089
     }
   },
   "stationAudit": {
-    "unmatchedStations": 87
+    "unmatchedStations": 97
   },
-  "generatedAt": "2026-09-16T10:47:36+08:00"
+  "generatedAt": "2026-10-07T14:28:45+08:00"
 }
